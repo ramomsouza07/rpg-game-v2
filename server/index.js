@@ -201,6 +201,8 @@ Room.prototype.act = function(cid, action) {
 
   var p = this.combat.order[this.combat.ti];
   var log = '';
+  var r20, pm, total, tgt, dmg;
+  var aliveE = this.combat.order.filter(function(e){return !e.isP && e.hp > 0;});
 
   /* ===== STANDARD ATTACK ===== */
   if (action.type === 'attack') {
