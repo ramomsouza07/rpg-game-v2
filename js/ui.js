@@ -2,12 +2,13 @@
    GAME UI + NETWORK LAYER
    =========================================================== */
 
-var ws     = null;
-var myId   = null;   /* my connection id */
-var myChar = null;   /* my character data (client-side copy) */
-var inCb   = false;  /* are we in combat? */
-var myTk   = false;  /* is it my turn? */
-var rLoc   = 'Vila Pacifica'; /* current room location */
+var ws          = null;
+var pendingRoom = null;  /* waiting to join after char creation */
+var myId        = null;   /* my connection id */
+var myChar      = null;   /* my character data (client-side copy) */
+var inCb        = false;  /* are we in combat? */
+var myTk        = false;  /* is it my turn? */
+var rLoc        = 'Vila Pacifica'; /* current room location */
 
 /* ---- helpers ---- */
 function $(id) { return document.getElementById(id); }
@@ -176,6 +177,12 @@ function onMsg(m) {
       break;
 
     case 'room_created':
+      screen('scr-char');
+      CC.init();
+      break;
+
+    case 'need_character':
+      pendingRoom = m.roomId || null;
       screen('scr-char');
       CC.init();
       break;
@@ -601,8 +608,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!CC.race || !CC.cls) { $('err-cname').textContent = 'Escolha raca e classe!'; return; }
     $('err-cname').textContent = '';
     myChar = CC.build(nm);
-    ws.send(JSON.stringify({type:'set_character', character:myChar}));
-    showExploreScreen();
+    /* if joining an existing room, complete the join */
+    if (pendingRoom) {
+      ws.send(JSON.stringify({type:'set_character', character:myChar, finishJoinRoom:pendingRoom}));
+      pendingRoom = null;
+    } else {
+      ws.send(JSON.stringify({type:'set_character', character:myChar}));
+      showExploreScreen();
+    }
   };
 
   /* Restart */

@@ -660,15 +660,34 @@ wss.on('connection', function(ws) {
         var target = rooms.get(msg.roomId);
         if (!target) { ws.send(JSON.stringify({type:'error', msg:'Sala nao encontrada.'})); break; }
         if (target.conns.length >= 4) { ws.send(JSON.stringify({type:'error', msg:'Sala cheia.'})); break; }
-        if (msg.character) c.char = msg.character;
-        target.add(c);
-        c.room = target;
-        target.sendState(ws);
-        target.bc({type:'player_joined', name:c.name});
+        if (msg.character) {
+          /* already has character — join directly */
+          c.char = msg.character;
+          target.add(c);
+          c.room = target;
+          target.sendState(ws);
+          target.bc({type:'player_joined', name:c.name});
+        } else {
+          /* pending join — wait for set_character */
+          c.pendingRoom = msg.roomId;
+          ws.send(JSON.stringify({type:'need_character', roomId:msg.roomId}));
+        }
         break;
 
       case 'set_character':
         if (msg.character) c.char = msg.character;
+        /* if pending room join, complete it */
+        var roomId = msg.finishJoinRoom || c.pendingRoom;
+        if (roomId && c.char && !c.room) {
+          var room = rooms.get(roomId);
+          if (room && room.conns.length < 4) {
+            c.pendingRoom = null;
+            room.add(c);
+            c.room = room;
+            room.sendState(c.ws);
+            room.bc({type:'player_joined', name:c.name});
+          }
+        }
         break;
 
       case 'chat':
