@@ -394,7 +394,8 @@ function showCombatScreen(data) {
   screen('scr-combat');
   $('cb-log').innerHTML = '';
   redrawCombat(data);
-  disableCombatBtns();
+  /* empty action bar until first your_turn */
+  $('cb-acts').innerHTML = '';
   /* show combat log from server data */
   if (data && data.log) {
     for (var i=0; i<data.log.length; i++) {
@@ -415,7 +416,20 @@ function redrawCombat(data) {
   if (data.order) {
     for (var i=0; i<data.order.length; i++) {
       var u = data.order[i];
-      if (!u.isP && u.hp <= 0) continue; /* hide dead enemies */
+      /* hide dead: enemies with hp <= 0, players with hp <= 0 */
+      if (!u.isP && u.hp <= 0) continue;
+      if (u.isP && u.hp <= 0) {
+        /* show dead player dimmed */
+        var dd = document.createElement('div');
+        dd.style.opacity = '0.4';
+        dd.innerHTML = '<div class="cu-ico">\u{1F9D1}</div>' +
+          '<div class="cu-info">' +
+            '<div class="cu-nm">' + esc(u.name) + '</div>' +
+            '<div class="cu-hp" style="color:var(--bad)">Derrotado</div>' +
+          '</div>';
+        sp.appendChild(dd);
+        continue;
+      }
       var pct = u.maxHp > 0 ? Math.round(100 * u.hp / u.maxHp) : 0;
       var hc = pct > 60 ? '' : pct > 30 ? 'low' : 'crit';
       var onTurn = u.name === turnName;
@@ -432,8 +446,9 @@ function redrawCombat(data) {
     }
   }
 
-  /* sidebar */
-  renderCombatSidebar(data.ps || []);
+  /* sidebar - filter dead players */
+  var livePs = (data.ps || []).filter(function(x){ return x.hp > 0; });
+  renderCombatSidebar(livePs);
   /* sync my char */
   syncMyChar(data);
 }

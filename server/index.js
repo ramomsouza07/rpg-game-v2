@@ -504,109 +504,117 @@ Room.prototype.explore = function(cid, ws) {
 
   /* random events - many more varieties */
   var evts = [
-    /* ---- peaceful ---- */
-    function() { return {msg: 'O caminho e tranquilo. Nenhuma ameaca a vista.', type:'info'}; },
-    function() { return {msg: c.name + ' observa a paisagem e sente uma brisa suave.', type:'info'}; },
-    function() { return {msg: 'Passaros cantam a distancia. O ambiente e calmo.', type:'info'}; },
-    /* ---- loot / gold ---- */
+    /* ---- peaceful (4 slots) ---- */
+    function() { return {msg: 'O grupo avanca com cuidado. O caminho esta livre.', type:'info'}; },
+    function() { return {msg: c.name + ' encontra pegadas de uma criatura que partiu.', type:'info'}; },
+    function() { return {msg: 'Uma luz fraca vem de uma fresta na parede...', type:'info'}; },
+    function() { return {msg: 'O grupo descansa brevemente e segue viagem.', type:'info'}; },
+    /* ---- loot / gold (6 slots) ---- */
     function() {
-      var g = roll('1d6+1');
+      var g = roll('2d6+3');
       ch.gold = (ch.gold||0) + g;
       return {msg: c.name + ' encontrou uma bolsa com ' + g + ' de ouro!', type:'gold'};
     },
     function() {
-      var g = roll('2d10+5');
+      var g = roll('3d10+10');
       ch.gold = (ch.gold||0) + g;
       return {msg: 'Um bau escondido continha ' + g + ' de ouro!', type:'gold'};
     },
     function() {
-      var g = roll('1d4');
+      var g = roll('1d8+2');
       ch.gold = (ch.gold||0) + g;
-      return {msg: c.name + ' achou algumas moedas no chao: +' + g + ' ouro.', type:'gold'};
+      return {msg: 'Moedas antigas caem de uma armadura velha: +' + g + ' ouro.', type:'gold'};
     },
-    /* ---- healing ---- */
     function() {
-      var h = roll('1d6+2');
+      var g = roll('2d4+1');
+      ch.gold = (ch.gold||0) + g;
+      return {msg: c.name + ' achou um cofre com ' + g + ' de ouro.', type:'gold'};
+    },
+    function() {
+      if(ch.inventory && ch.inventory.indexOf('Pocao') < 0) {
+        ch.inventory.push('Pocao');
+        return {msg: c.name + ' encontrou uma Pocao de Cura num nicho!', type:'gold'};
+      }
+      ch.gold = (ch.gold||0) + 10;
+      return {msg: 'Encontrou 10 de ouro ao inves de uma pocao.', type:'gold'};
+    },
+    function() {
+      var g = roll('1d12+5');
+      ch.gold = (ch.gold||0) + g;
+      return {msg: c.name + ' resgatou um tesouro de um esqueleto: +' + g + ' ouro!', type:'gold'};
+    },
+    /* ---- healing (3 slots) ---- */
+    function() {
+      var h = roll('2d6+2');
       ch.hp = Math.min((ch.hp||0) + h, ch.maxHp);
       return {msg: 'Uma fonte de agua curativa! +' + h + ' HP.', type:'heal'};
     },
     function() {
-      var h = roll('1d4');
+      var h = roll('2d4+1');
       ch.hp = Math.min((ch.hp||0) + h, ch.maxHp);
       return {msg: c.name + ' encontra ervas medicinais e se cura: +' + h + ' HP.', type:'heal'};
     },
-    /* ---- XP discoveries ---- */
+    function() {
+      var h = roll('1d4');
+      ch.hp = Math.min((ch.hp||0) + h, ch.maxHp);
+      return {msg: 'Um rio de aguas sagradas! O grupo bebe e recupera +' + h + ' HP.', type:'heal'};
+    },
+    /* ---- XP discoveries (4 slots) ---- */
     function() {
       var r = d(20) + mod(ch.attributes && ch.attributes.int || 10);
       if (r >= 12) {
-        ch.xp = (ch.xp||0) + 20;
-        return {msg: c.name + ' decifrou inscricoes antigas! +20 XP.', type:'info'};
+        ch.xp = (ch.xp||0) + 25;
+        return {msg: c.name + ' decifreu inscricoes antigas! +25 XP.', type:'info'};
       }
-      return {msg: c.name + ' encontrou runas mas nao conseguiu decifrar.', type:'info'};
+      ch.xp = (ch.xp||0) + 10;
+      return {msg: c.name + ' estudou runas e aprendeu algo. +10 XP.', type:'info'};
     },
     function() {
-      ch.xp = (ch.xp||0) + 10;
-      return {msg: c.name + ' aprendeu algo novo explorando. +10 XP.', type:'info'};
+      ch.xp = (ch.xp||0) + 20;
+      return {msg: c.name + ' aprendeu tecnicas antigas de combate. +20 XP.', type:'info'};
     },
     function() {
       var r = d(20) + mod(ch.attributes && ch.attributes.sab || 10);
       if (r >= 13) {
-        ch.xp = (ch.xp||0) + 25;
-        return {msg: c.name + ' meditou e teve uma visao divina! +25 XP.', type:'info'};
+        ch.xp = (ch.xp||0) + 30;
+        return {msg: c.name + ' meditou e teve uma visao divina! +30 XP.', type:'info'};
       }
-      return {msg: c.name + ' tentou meditar mas foi interrompido por ruidos.', type:'info'};
+      ch.xp = (ch.xp||0) + 5;
+      return {msg: c.name + ' refletiu sobre a jornada. +5 XP.', type:'info'};
     },
-    /* ---- traps and danger ---- */
+    function() {
+      var r = d(20) + mod(ch.attributes && ch.attributes.car || 10);
+      if (r >= 12) {
+        ch.xp = (ch.xp||0) + 20;
+        return {msg: c.name + ' convenceu um mercador a compartilhar segredos! +20 XP.', type:'info'};
+      }
+      ch.xp = (ch.xp||0) + 8;
+      return {msg: 'Conversa com um viajante rendeu ideias. +8 XP.', type:'info'};
+    },
+    /* ---- traps (2 slots - NOW with skill checks) ---- */
     function() {
       var r = d(20) + mod(ch.attributes && ch.attributes.des || 10);
-      if (r >= 12) {
+      if (r >= 11) {
+        ch.xp = (ch.xp||0) + 15;
         return {msg: c.name + ' percebeu uma armadilha e a desativou! +15 XP.', type:'info'};
       }
-      var dmg = roll('1d6');
+      var dmg = roll('1d4');
       ch.hp = Math.max((ch.hp||0) - dmg, 1);
       return {msg: c.name + ' caiu em uma armadilha! -' + dmg + ' HP!', type:'dmg'};
     },
     function() {
-      var r = d(20) + mod(ch.attributes && ch.attributes.for || 10);
-      if (r >= 14) {
-        ch.xp = (ch.xp||0) + 15;
-        return {msg: c.name + ' derrubou uma porta trancada com forca! +15 XP.', type:'info'};
+      var r = d(20) + mod(ch.attributes && ch.attributes.des || 10);
+      if (r >= 10) {
+        return {msg: c.name + ' desviou de uma flecha armada na parede!', type:'info'};
       }
-      return {msg: c.name + ' encontrou uma porta trancada mas nao conseguiu abrir.', type:'info'};
-    },
-    /* ---- items ---- */
-    function() {
-      if (ch.inventory && ch.inventory.indexOf('Pocao') < 0) {
-        ch.inventory.push('Pocao');
-        return {msg: c.name + ' encontrou uma Pocao de Cura!', type:'gold'};
-      }
-      return {msg: c.name + ' encontrou um pedestal vazio... alguem ja passou por aqui.', type:'info'};
-    },
-    function() {
-      return {msg: c.name + ' achou um mapa antigo no chao. O grupo ganhou conhecimento da area.', type:'info'};
-    },
-    /* ---- atmosphere ---- */
-    function() { return {msg: 'Marcas de garras nas paredes indicam perigo proximo...', type:'info'}; },
-    function() { return {msg: 'Um vento frio sopra, trazendo um cheiro de enxofre.', type:'info'}; },
-    function() { return {msg: 'Ossos espalhados pelo chao... melhor ficar atento.', type:'info'}; },
-    function() { return {msg: c.name + ' ouve sons estranhos vindo da escuridao.', type:'info'}; },
-    function() { return {msg: 'Tochas apagadas iluminam fracamente o corredor.', type:'info'}; },
-    function() { return {msg: 'Pegadas frescas no chao... e recente.', type:'info'}; },
-    /* ---- minor traps ---- */
-    function() {
       var dmg = roll('1d3');
       ch.hp = Math.max((ch.hp||0) - dmg, 1);
-      return {msg: c.name + ' pisou em um buraco! -' + dmg + ' HP.', type:'dmg'};
+      return {msg: c.name + ' foi atingido por flechas! -' + dmg + ' HP.', type:'dmg'};
     },
-    /* ---- skill checks ---- */
-    function() {
-      var r = d(20) + mod(ch.attributes && ch.attributes.car || 10);
-      if (r >= 13) {
-        ch.xp = (ch.xp||0) + 15;
-        return {msg: c.name + ' convenceu um eremita a compartilhar segredos! +15 XP.', type:'info'};
-      }
-      return {msg: 'Um eremita se recusa a falar com o grupo.', type:'info'};
-    },
+    /* ---- atmospheric flavor (3 slots) ---- */
+    function() { return {msg: 'Marcas de garras nas paredes indicam perigo proximo...', type:'info'}; },
+    function() { return {msg: 'Ossos espalhados pelo chao... melhor ficar atento.', type:'info'}; },
+    function() { return {msg: c.name + ' ouve sons estranhos vindo da escuridao.', type:'info'}; },
   ];
 
   var result = evts[d(evts.length)-1]();
