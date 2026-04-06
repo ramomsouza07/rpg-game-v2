@@ -97,6 +97,7 @@ function doConnect() {
   var name = $('inp-name').value.trim();
   if (!name) { $('err-conn').textContent = 'Digite seu nome!'; return; }
   $('err-conn').textContent = '';
+  localStorage.setItem('rpg-player-name', name);
 
   var st = $('conn-st');
   st.textContent = 'Conectando...';
@@ -128,6 +129,8 @@ function showLobby2() {
   hide('step1');
   show('step2');
   $('welcome').textContent = $('inp-name').value;
+  /* persist name to char creation */
+  $('inp-cname').value = $('inp-name').value;
   refreshRooms();
 }
 
@@ -166,6 +169,12 @@ function onMsg(m) {
 
     case 'joined':
       myId = m.id;
+      /* restore saved name */
+      var savedName = localStorage.getItem('rpg-player-name');
+      if (savedName) {
+        $('inp-name').value = savedName;
+        $('inp-cname').value = savedName;
+      }
       var st = $('conn-st');
       st.textContent = 'Conectado!';
       st.className = 'st connected';
@@ -273,6 +282,11 @@ function onMsg(m) {
         enableCombatBtns();
         $('turn-ind').textContent = '\u25b6 SEU TURNO';
         $('turn-ind').className = 'yours';
+      } else if (inCb) {
+        /* safety: force enable if it should be our turn */
+        if ($('turn-ind') && !$('turn-ind').textContent.includes('SEU')) {
+          console.log('turn mismatch:', m.cid, myId);
+        }
       }
       break;
 
@@ -493,6 +507,7 @@ function enableCombatBtns() {
   myTk = true;
   var bar = $('cb-acts');
   bar.innerHTML = '';
+  console.log('enableCombatBtns | myId:', myId, 'myChar:', myChar ? myChar.name : 'null');
 
   var acts = [
     {t:'attack',       l:'\u2694\uFE0F Atacar'},
