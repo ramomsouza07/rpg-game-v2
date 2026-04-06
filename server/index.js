@@ -717,6 +717,6 @@ wss.on('connection', function(ws) {
   });
 });
 
-srv.listen(PORT, function() {
-  console.log('Servidor RPG rodando em http://localhost:' + PORT);
+srv.listen(PORT, '0.0.0.0', function() {
+  console.log('Servidor RPG rodando em 0.0.0.0:' + PORT);
 });
