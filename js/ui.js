@@ -271,7 +271,10 @@ function onMsg(m) {
       break;
 
     case 'combat_update':
-      if (m.combat) redrawCombat(m.combat);
+      if (m.combat) {
+        redrawCombat(m.combat);
+        updateCombatLog(m.combat.log);
+      }
       /* sync my char copy */
       syncMyChar(m.combat);
       break;
@@ -282,11 +285,6 @@ function onMsg(m) {
         enableCombatBtns();
         $('turn-ind').textContent = '\u25b6 SEU TURNO';
         $('turn-ind').className = 'yours';
-      } else if (inCb) {
-        /* safety: force enable if it should be our turn */
-        if ($('turn-ind') && !$('turn-ind').textContent.includes('SEU')) {
-          console.log('turn mismatch:', m.cid, myId);
-        }
       }
       break;
 
@@ -488,6 +486,18 @@ function renderCombatSidebar(ps) {
   }
 }
 
+function updateCombatLog(log) {
+  if (!log) return;
+  var el = $('cb-log');
+  if (!el) return;
+  /* only show new entries that aren't already rendered */
+  var currentCount = el.querySelectorAll('.ll').length;
+  for (var i = currentCount; i < log.length; i++) {
+    var entry = log[i];
+    clog(entry.msg, entry.type || 'info');
+  }
+}
+
 function syncMyChar(data) {
   if (!myChar || !data) return;
   if (data.ps) {
@@ -507,7 +517,6 @@ function enableCombatBtns() {
   myTk = true;
   var bar = $('cb-acts');
   bar.innerHTML = '';
-  console.log('enableCombatBtns | myId:', myId, 'myChar:', myChar ? myChar.name : 'null');
 
   var acts = [
     {t:'attack',       l:'\u2694\uFE0F Atacar'},
