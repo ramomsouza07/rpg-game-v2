@@ -202,35 +202,22 @@ Room.prototype.act = function(cid, action) {
   var p = this.combat.order[this.combat.ti];
   var log = '';
 
-  if (action.type === 'roll_attack') {
-    var r20 = d(20);
-    var pm = mod(p.attr[PRIM[p.cls]] || 10);
-    var total = r20 + pm;
-
-    /* find enemy in order (so UI updates correctly) */
-    var aliveE = this.combat.order.filter(function(e){return !e.isP && e.hp > 0;});
+  /* ===== STANDARD ATTACK ===== */
+  if (action.type === 'attack') {
+    r20 = d(20);
+    pm = mod(p.attr[PRIM[p.cls]] || 10);
+    total = r20 + pm;
     log = p.name + ' ataca [d20: ' + r20 + (pm >= 0 ? ' +' : '') + pm + ' = ' + total + ']';
-
     if (aliveE.length === 0) {
       log += ' — Sem inimigos vivos.';
     } else {
-      var tgt = aliveE[action.target || 0];
+      tgt = aliveE[action.target || 0];
       if (r20 === 1) {
         log += ' — Falha critica! Errou!';
       } else if (r20 === 20 || total >= tgt.ac) {
-        var dieType = p.cls === 'mago' ? '2d6' : p.cls === 'ranger' ? '1d8' : '1d10';
-        var dmgBase = roll(dieType);
-        var dmg = dmgBase + pm;
-        if (r20 === 20) {
-          dmg += roll(dieType);
-        }
+        dmg = roll('1d10') + pm;
+        if (r20 === 20) dmg *= 2;
         tgt.hp -= Math.max(dmg, 1);
-
-        /* also damage the corresponding enemy in es (for checkDeaths) */
-        if (tgt._esIdx !== undefined && this.combat.es[tgt._esIdx]) {
-          this.combat.es[tgt._esIdx].hp = tgt.hp;
-        }
-
         log += ' — Acertou ' + tgt.name + ' por ' + dmg + ' de dano';
         if (r20 === 20) log += ' (CRITICO!)';
       } else {
@@ -238,52 +225,145 @@ Room.prototype.act = function(cid, action) {
       }
     }
 
+  /* ===== HEAVY ATTACK (-2 hit, +2d6 dmg, crit 1.5x) ===== */
+  } else if (action.type === 'heavy_attack') {
+    r20 = d(20);
+    pm = mod(p.attr[PRIM[p.cls]] || 10);
+    total = r20 + pm - 2;
+    log = p.name + ' golpe forte [d20: ' + r20 + (pm >= 0 ? ' +' : '') + pm + ' - 2 = ' + total + ']';
+    if (aliveE.length === 0) {
+      log += ' — Sem inimigos vivos.';
+    } else {
+      tgt = aliveE[0];
+      if (r20 === 1) {
+        log = p.name + ' golpe forte [d20: 1] — Falha critica! Se expose!';
+        p.hp -= 2;
+      } else if (r20 === 20 || total >= tgt.ac) {
+        dmg = roll('2d6') + pm;
+        if (r20 === 20) dmg = Math.floor(dmg * 1.5);
+        tgt.hp -= Math.max(dmg, 1);
+        log += ' — Acertou ' + tgt.name + ' por ' + dmg + ' de dano';
+        if (r20 === 20) log += ' (CRITICO!)';
+      } else {
+        log += ' — Errou ' + tgt.name + ' (CA ' + tgt.ac + ')';
+      }
+    }
+
+  /* ===== QUICK ATTACK (+2 hit, -2 dmg) ===== */
+  } else if (action.type === 'quick_attack') {
+    r20 = d(20);
+    pm = mod(p.attr[PRIM[p.cls]] || 10) + 2;
+    total = r20 + pm;
+    log = p.name + ' ataque rapido [d20: ' + r20 + (pm >= 0 ? ' +' : '') + pm + ' = ' + total + ']';
+    if (aliveE.length === 0) {
+      log += ' — Sem inimigos vivos.';
+    } else {
+      tgt = aliveE[0];
+      if (r20 === 1) {
+        log += ' — Falha critica!';
+      } else if (total >= tgt.ac) {
+        dmg = Math.max(roll('1d4') + pm - 2, 1);
+        if (r20 === 20) dmg += roll('1d4');
+        tgt.hp -= dmg;
+        log += ' — Acertou ' + tgt.name + ' por ' + dmg + ' de dano';
+        if (r20 === 20) log += ' (CRITICO!)';
+      } else {
+        log += ' — Errou ' + tgt.name + ' (CA ' + tgt.ac + ')';
+      }
+    }
+
+  /* ===== DEFEND ===== */
   } else if (action.type === 'defend') {
-    var heal = roll('1d8') + mod(p.attr.con || 10);
-    heal = Math.max(heal, 1);
+    var heal = roll('1d6') + mod(p.attr.con || 10);
+    heal = Math.max(heal, 2);
     p.hp = Math.min(p.hp + heal, p.maxHp);
     log = p.name + ' se defende e recupera ' + heal + ' HP.';
 
-  } else if (action.type === 'flee') {
-    var fr = d(20) + mod(p.attr.des || 10);
-    if (fr >= 12) {
-      log = p.name + ' fugiu do combate!';
-      this.combat.log.push({msg:log, type:'info'});
-      this.syncHp();
-      this.combat.alive = false;
-
-      /* remove dead player reference from order for escapees */
-      p.hp = 0;
-
-      this.cleanupCombat();
-      this.bcastState();
-      return {ended:true};
+  /* ===== BATTLE CRY (debuff enemies) ===== */
+  } else if (action.type === 'battle_cry') {
+    r20 = d(20);
+    var bm = mod(p.attr.car || 10);
+    total = r20 + bm;
+    log = p.name + ' grito de guerra [d20: ' + r20 + (bm >= 0 ? ' +' : '') + bm + ' = ' + total + ']';
+    if (total >= 12) {
+      for (var i = 0; i < this.combat.order.length; i++) {
+        var u = this.combat.order[i];
+        if (!u.isP && u.hp > 0) u._cryDebuff = true;
+      }
+      log += ' — Inimigos ficam amedrontados!';
     } else {
-      log = p.name + ' nao conseguiu fugir.';
+      log += ' — Falhou.';
     }
 
+  /* ===== FIRST AID (heal ally) ===== */
+  } else if (action.type === 'first_aid') {
+    var allies = this.combat.order.filter(function(x){return x.isP && x.hp > 0 && x.cid !== p.cid;});
+    var target = null;
+    for (var i = 0; i < allies.length; i++) {
+      if (allies[i].hp < allies[i].maxHp) {
+        if (!target || allies[i].hp < target.hp) target = allies[i];
+      }
+    }
+    if (target) {
+      r20 = d(20);
+      if (r20 >= 8) {
+        var h = roll('2d4') + 2;
+        target.hp = Math.min(target.hp + h, target.maxHp);
+        log = p.name + ' faz primeiros socorros em ' + target.name + ' [d20: ' + r20 + '] — +' + h + ' HP!';
+      } else {
+        log = p.name + ' tenta ajudar ' + target.name + ' mas falha.';
+      }
+    } else {
+      log = p.name + ' procura aliados feridos mas nao encontra.';
+    }
+
+  /* ===== CHARGE (high risk, high damage) ===== */
+  } else if (action.type === 'charge') {
+    r20 = d(20);
+    pm = mod(p.attr[PRIM[p.cls]] || 10);
+    total = r20 + pm - 3;
+    log = p.name + ' investida [d20: ' + r20 + (pm >= 0 ? ' +' : '') + pm + ' - 3 = ' + total + ']';
+    if (aliveE.length === 0) {
+      log += ' — Sem inimigos vivos.';
+    } else {
+      tgt = aliveE[0];
+      if (r20 === 1) {
+        log = p.name + ' investida [d20: 1] — Tropecou! Errou!';
+      } else if (r20 === 20 || total >= tgt.ac) {
+        dmg = roll('2d8') + pm;
+        if (r20 === 20) dmg *= 2;
+        tgt.hp -= Math.max(dmg, 1);
+        log += ' — Acertou ' + tgt.name + ' por ' + dmg + ' de dano';
+        if (r20 === 20) log += ' (CRITICO!)';
+      } else {
+        log += ' — Errou ' + tgt.name + ' (CA ' + tgt.ac + ')';
+      }
+    }
+
+  /* ===== SPELL (mage/cleric) ===== */
   } else if (action.type === 'spell') {
     var aKey = p.cls === 'mago' ? 'int' : 'sab';
     var sMod = mod(p.attr[aKey]||10) + 2;
     var sr = d(20);
-    var sTotal = sr + sMod;
-    var eAlive = this.combat.order.filter(function(e){return !e.isP && e.hp>0;});
-    if (!eAlive.length) {
-      log = 'Sem alvos vivos.';
+    total = sr + sMod;
+    log = p.name + ' magia [d20: ' + sr + (sMod >= 0 ? ' +' : '') + sMod + ' = ' + total + ']';
+    if (!aliveE.length) {
+      log = p.name + ' lanca magia — Sem alvos vivos.';
     } else if (sr === 1) {
-      log = p.name + ': magia falhou (d20: 1)!';
-    } else if (sr === 20 || sTotal >= eAlive[0].ac + 1) {
-      var sDmg = roll('2d8') + sMod;
-      eAlive[0].hp -= Math.max(sDmg, 1);
-      /* sync to es */
-      if (eAlive[0]._esIdx !== undefined && this.combat.es[eAlive[0]._esIdx]) {
-        this.combat.es[eAlive[0]._esIdx].hp = eAlive[0].hp;
-      }
-      log = p.name + ' lanca magia em ' + eAlive[0].name + ' por ' + sDmg + ' de dano!';
+      log += ' — Falha critica! A magia se dissipa.';
     } else {
-      log = p.name + ': magia falhou (total: ' + sTotal + ')!';
+      tgt = aliveE[0];
+      if (sr === 20 || total >= tgt.ac + 1) {
+        var sDmg = roll('2d6') + sMod;
+        if (sr === 20) { sDmg += roll('2d6'); log = p.name + ' magia [CRITICO!]'; }
+        tgt.hp -= Math.max(sDmg, 1);
+        log += ' — Acertou ' + tgt.name + ' por ' + sDmg + ' de dano';
+      } else {
+        log += ' — Falhou contra ' + tgt.name + '.';
+      }
     }
 
+  /* ===== POTION ===== */
   } else if (action.type === 'potion') {
     var conn = this.byId(cid);
     var inv = conn && conn.char && conn.char.inventory;
@@ -293,7 +373,23 @@ Room.prototype.act = function(cid, action) {
       p.hp = Math.min(p.hp + pHeal, p.maxHp);
       log = p.name + ' usa Pocao de Cura: +' + pHeal + ' HP!';
     } else {
-      log = p.name + ' nao tem Pocao de Cura.';
+      log = p.name + ' nao tem pocoes.';
+    }
+
+  /* ===== FLEE ===== */
+  } else if (action.type === 'flee') {
+    var fr = d(20) + mod(p.attr.des || 10);
+    if (fr >= 12) {
+      log = p.name + ' foge do combate! [d20: ' + (fr - mod(p.attr.des || 10)) + '] — Conseguiu!';
+      this.combat.log.push({msg:log, type:'info'});
+      this.syncHp();
+      this.combat.alive = false;
+      p.hp = 0;
+      this.cleanupCombat();
+      this.bcastState();
+      return {ended:true};
+    } else {
+      log = p.name + ' tentou fugir [d20: ' + (fr - mod(p.attr.des || 10)) + '] — Falhou.';
     }
   }
 

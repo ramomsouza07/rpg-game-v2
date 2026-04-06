@@ -495,9 +495,14 @@ function enableCombatBtns() {
   bar.innerHTML = '';
 
   var acts = [
-    {t:'roll_attack', l:'\u{1F3B2} Rolar d20 + Atacar'},
-    {t:'defend',      l:'\u{1F6E1} Defender'},
-    {t:'flee',        l:'\u{1F3C3} Fugir'}
+    {t:'attack',       l:'\u2694\uFE0F Atacar'},
+    {t:'quick_attack', l:'\u{1F4A8} Ataque Rapido'},
+    {t:'heavy_attack', l:'\u{1F4A5} Golpe Forte'},
+    {t:'charge',       l:'\u{1F3C7} Investida'},
+    {t:'defend',       l:'\u{1F6E1}\uFE0F Defender'},
+    {t:'battle_cry',   l:'\u{1F4E3} Grito de Guerra'},
+    {t:'first_aid',    l:'\u{1FA79} Primeiros Socorros'},
+    {t:'flee',         l:'\u{1F3C3} Fugir'}
   ];
   if (myChar && (myChar.classKey === 'mago' || myChar.classKey === 'clerigo')) {
     acts.push({t:'spell', l:'\u2728 Magia'});
@@ -520,7 +525,7 @@ function enableCombatBtns() {
           bb.classList.remove('active');
         });
         /* dice animation for attacks/spells */
-        if (a.t === 'roll_attack' || a.t === 'spell') {
+        if (a.t === 'attack' || a.t === 'heavy_attack' || a.t === 'quick_attack' || a.t === 'charge' || a.t === 'spell') {
           diceAnim();
         }
         ws.send(JSON.stringify({
