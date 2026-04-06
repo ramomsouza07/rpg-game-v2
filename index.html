@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPG - Aventura Cooperativa</title>
+  <link rel="stylesheet" href="styles/game.css">
+</head>
+<body>
+<div id="game">
+
+  <!-- ===== LOBBY ===== -->
+  <section id="scr-lobby" class="screen active">
+    <div class="lobby-bg">
+      <div class="lobby-particles"></div>
+    </div>
+    <div class="lobby-wrap">
+      <div class="lobby-title">
+        <div class="lobby-logo">⚔️</div>
+        <h1>RPG — Aventura Cooperativa</h1>
+        <p class="lobby-subtitle">Uma jornada épica o aguarda</p>
+      </div>
+      <div class="panel lobby-panel">
+        <!-- Step 1: connect -->
+        <div id="step1">
+          <div class="lobby-step-title">Entre na Aventura</div>
+          <div class="fld">
+            <label for="inp-name">Nome do heroi</label>
+            <input type="text" id="inp-name" placeholder="Como deseja ser chamado?" maxlength="20" autocomplete="off">
+          </div>
+          <div id="err-conn" class="err"></div>
+          <p id="conn-st" class="st disconnected">
+            <span class="st-dot"></span> Desconectado
+          </p>
+          <button id="btn-conn" class="btn-big btn-conn">
+            <span>Conectar ao Servidor</span>
+          </button>
+        </div>
+        <!-- Step 2: lobby actions -->
+        <div id="step2" style="display:none">
+          <div class="lobby-step-title">
+            <span class="st-dot st-dot-green"></span>
+            Conectado — <span id="welcome"></span>
+          </div>
+          <div class="fld">
+            <label>Criar uma nova aventura</label>
+            <div class="input-row">
+              <input type="text" id="inp-room" placeholder="Nome da sala..." value="Minha Sala" maxlength="20">
+              <button id="btn-mkroom" class="btn-sm-action">
+                <span class="action-icon">+</span> Criar
+              </button>
+            </div>
+          </div>
+          <p class="lobby-divider"><span>ou entre em uma aventura existente</span></p>
+          <div class="fld">
+            <label>Aventuras disponiveis</label>
+            <div id="ll-rooms" class="room-list"></div>
+          </div>
+          <button id="btn-refresh" class="btn-med btn-refresh">
+            <span>↻</span> Atualizar salas
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CHAR CREATE ===== -->
+  <section id="scr-char" class="screen">
+    <h1>Crie Seu Herói</h1>
+    <div class="panel char-panel">
+      <div class="fld">
+        <label for="inp-cname">Nome do personagem</label>
+        <input type="text" id="inp-cname" placeholder="Nome..." maxlength="30" autocomplete="off">
+        <div id="err-cname" class="err"></div>
+      </div>
+
+      <div class="section">
+        <label>Raça — bônus de atributo</label>
+        <div class="opt-grid" id="cc-races"></div>
+      </div>
+
+      <div class="section">
+        <label>Classe</label>
+        <div class="opt-grid" id="cc-classes"></div>
+      </div>
+
+      <div class="section">
+        <label>Atributos</label>
+        <p id="cc-pts">Pontos: 27</p>
+        <div id="cc-attrs"></div>
+        <button id="btn-roll" class="btn-med">🎲 Sortear</button>
+      </div>
+
+      <div class="char-summary" id="cc-summary"></div>
+
+      <button id="cc-play" class="btn-big" disabled>Criar &amp; Jogar</button>
+    </div>
+  </section>
+
+  <!-- ===== EXPLORE ===== -->
+  <section id="scr-explore" class="screen">
+    <div class="layout">
+      <aside class="sidebar">
+        <h3>Grupo</h3>
+        <div id="sb-players"></div>
+        <div class="sidebar-section">
+          <h3>Historico de Logs</h3>
+          <div class="log-hist" id="log-hist"></div>
+        </div>
+        <div class="cbox">
+          <h3>Chat</h3>
+          <div class="clog" id="clog-exp"></div>
+          <div class="cbar">
+            <input type="text" id="cinp-exp" placeholder="Mensagem...">
+            <button id="cbtn-exp" class="btn-sm">→</button>
+          </div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="top-bar">
+          <span class="loc-tag" id="tb-loc">—</span>
+          <span class="char-name" id="tb-name"></span>
+          <span class="char-info" id="tb-info"></span>
+          <span class="stat-hp" id="tb-hp"></span>
+          <span class="stat-gold" id="tb-gold"></span>
+          <span class="stat-xp" id="tb-xp"></span>
+        </div>
+        <div class="act-bar" id="exp-acts"></div>
+        <div class="log-box">
+          <div class="scene-bg" id="scene-bg"></div>
+          <div class="log-inner" id="exp-log"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== COMBAT ===== -->
+  <section id="scr-combat" class="screen">
+    <div class="layout">
+      <aside class="sidebar">
+        <h3>Grupo</h3>
+        <div id="sb-cb-players"></div>
+        <div class="cbox">
+          <h3>Chat</h3>
+          <div class="clog" id="clog-cb"></div>
+          <div class="cbar">
+            <input type="text" id="cinp-cb" placeholder="Mensagem...">
+            <button id="cbtn-cb" class="btn-sm">→</button>
+          </div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="vs-row">
+          <div class="cvs-side" id="cv-players"><h4>Jogadores</h4></div>
+          <div class="cvs-mid">VS</div>
+          <div class="cvs-side" id="cv-enemies"><h4>Inimigos</h4></div>
+        </div>
+        <p id="turn-ind"></p>
+        <div class="log-box">
+          <div class="log-inner" id="cb-log"></div>
+        </div>
+        <div class="act-bar" id="cb-acts"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== GAME OVER ===== -->
+  <section id="scr-over" class="screen">
+    <div class="over-box">
+      <h1 id="ov-title">Fim da Aventura</h1>
+      <p id="ov-msg"></p>
+      <button id="btn-restart" class="btn-big">Voltar ao Lobby</button>
+    </div>
+  </section>
+</div>
+
+<div id="dice-overlay" class="hidden"><div id="dice-result"></div></div>
+
+<script src="js/data/definitions.js"></script>
+<script src="js/core/dice.js"></script>
+<script src="js/character.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
