@@ -144,10 +144,13 @@ Room.prototype.startCombat = function(enemyTpls) {
     };
   });
 
+  /* enemies: SAME objects stored in both order and es arrays */
   var enemies = enemyTpls.map(function(e, i) {
     var ehp = e.hp || 10;
     return {
+      cid: null,
       idx: i,
+      _esIdx: i,
       name: e.name,
       hp: ehp,
       maxHp: e.maxHp || ehp,
@@ -165,7 +168,7 @@ Room.prototype.startCombat = function(enemyTpls) {
   all.sort(function(a,b){ return b.init - a.init; });
 
   this.combat = {
-    es: enemyTpls,
+    es: enemies,
     order: all,
     ti: 0,
     log: [{ msg:'Combate iniciado!', type:'info' }],
@@ -203,22 +206,33 @@ Room.prototype.act = function(cid, action) {
     var r20 = d(20);
     var pm = mod(p.attr[PRIM[p.cls]] || 10);
     var total = r20 + pm;
-    var aliveE = this.combat.es.filter(function(e){return e.hp > 0;});
-    log = p.name + ' rolou d20[' + r20 + ']' + ' mod:' + (pm>=0?'+':'')+pm + ' = ' + total;
 
-    if (aliveE.length) {
+    /* find enemy in order (so UI updates correctly) */
+    var aliveE = this.combat.order.filter(function(e){return !e.isP && e.hp > 0;});
+    log = p.name + ' ataca [d20: ' + r20 + (pm >= 0 ? ' +' : '') + pm + ' = ' + total + ']';
+
+    if (aliveE.length === 0) {
+      log += ' — Sem inimigos vivos.';
+    } else {
       var tgt = aliveE[action.target || 0];
       if (r20 === 1) {
         log += ' — Falha critica! Errou!';
       } else if (r20 === 20 || total >= tgt.ac) {
         var dieType = p.cls === 'mago' ? '2d6' : p.cls === 'ranger' ? '1d8' : '1d10';
-        var dmg = roll(dieType) + pm;
+        var dmgBase = roll(dieType);
+        var dmg = dmgBase + pm;
         if (r20 === 20) {
           dmg += roll(dieType);
-          log = 'CRITICO! ' + log;
         }
-        tgt.hp -= Math.max(dmg, 0);
-        log += ' — Acertou ' + tgt.name + ': ' + dmg + ' dano!';
+        tgt.hp -= Math.max(dmg, 1);
+
+        /* also damage the corresponding enemy in es (for checkDeaths) */
+        if (tgt._esIdx !== undefined && this.combat.es[tgt._esIdx]) {
+          this.combat.es[tgt._esIdx].hp = tgt.hp;
+        }
+
+        log += ' — Acertou ' + tgt.name + ' por ' + dmg + ' de dano';
+        if (r20 === 20) log += ' (CRITICO!)';
       } else {
         log += ' — Errou ' + tgt.name + ' (CA ' + tgt.ac + ')';
       }
@@ -226,16 +240,21 @@ Room.prototype.act = function(cid, action) {
 
   } else if (action.type === 'defend') {
     var heal = roll('1d8') + mod(p.attr.con || 10);
+    heal = Math.max(heal, 1);
     p.hp = Math.min(p.hp + heal, p.maxHp);
-    log = p.name + ' se defende e recupera ' + Math.max(heal,0) + ' HP.';
+    log = p.name + ' se defende e recupera ' + heal + ' HP.';
 
   } else if (action.type === 'flee') {
     var fr = d(20) + mod(p.attr.des || 10);
-    if (fr >= 13) {
+    if (fr >= 12) {
       log = p.name + ' fugiu do combate!';
       this.combat.log.push({msg:log, type:'info'});
       this.syncHp();
       this.combat.alive = false;
+
+      /* remove dead player reference from order for escapees */
+      p.hp = 0;
+
       this.cleanupCombat();
       this.bcastState();
       return {ended:true};
@@ -248,17 +267,21 @@ Room.prototype.act = function(cid, action) {
     var sMod = mod(p.attr[aKey]||10) + 2;
     var sr = d(20);
     var sTotal = sr + sMod;
-    var eAlive = this.combat.es.filter(function(e){return e.hp>0;});
+    var eAlive = this.combat.order.filter(function(e){return !e.isP && e.hp>0;});
     if (!eAlive.length) {
       log = 'Sem alvos vivos.';
     } else if (sr === 1) {
       log = p.name + ': magia falhou (d20: 1)!';
     } else if (sr === 20 || sTotal >= eAlive[0].ac + 1) {
       var sDmg = roll('2d8') + sMod;
-      eAlive[0].hp -= Math.max(sDmg, 0);
-      log = p.name + ' lanca magia em ' + eAlive[0].name + ': ' + sDmg + ' dano!';
+      eAlive[0].hp -= Math.max(sDmg, 1);
+      /* sync to es */
+      if (eAlive[0]._esIdx !== undefined && this.combat.es[eAlive[0]._esIdx]) {
+        this.combat.es[eAlive[0]._esIdx].hp = eAlive[0].hp;
+      }
+      log = p.name + ' lanca magia em ' + eAlive[0].name + ' por ' + sDmg + ' de dano!';
     } else {
-      log = p.name + ': magia falhou (d20: ' + sr + ', total: ' + sTotal + ')!';
+      log = p.name + ': magia falhou (total: ' + sTotal + ')!';
     }
 
   } else if (action.type === 'potion') {
