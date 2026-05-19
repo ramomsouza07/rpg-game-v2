@@ -496,6 +496,15 @@ function updateCombatLog(log) {
     var entry = log[i];
     clog(entry.msg, entry.type || 'info');
   }
+  /* check for combat end */
+  if (log.length > 0) {
+    var lastMsg = log[log.length - 1].msg;
+    if (lastMsg.indexOf('VITORIA') >= 0 || lastMsg.indexOf('🏆') >= 0) {
+      setTimeout(function(){ showVictoryAnimation(); }, 600);
+    } else if (lastMsg.indexOf('DERROTA') >= 0 || lastMsg.indexOf('💀') >= 0) {
+      setTimeout(function(){ showDefeatAnimation(); }, 600);
+    }
+  }
 }
 
 function syncMyChar(data) {
@@ -571,6 +580,42 @@ function disableCombatBtns() {
       b.classList.remove('active');
     });
   }
+}
+
+function showVictoryAnimation() {
+  var overlay = document.createElement('div');
+  overlay.id = 'victory-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;transition:opacity 0.3s;';
+  var content = document.createElement('div');
+  content.style.cssText = 'text-align:center;color:#fff;font-size:2.5em;font-weight:bold;animation:bounceIn 0.6s ease-out;';
+  content.innerHTML = '🏆<br>VITORIA!<br><div style="font-size:0.6em;margin-top:20px;color:#ffd700;">Voce venceu a batalha!</div>';
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+  setTimeout(function(){ overlay.style.opacity = '1'; }, 50);
+  setTimeout(function(){ overlay.style.opacity = '0'; overlay.style.transition = 'opacity 0.5s'; }, 2500);
+  setTimeout(function(){ overlay.remove(); }, 3000);
+}
+
+function showDefeatAnimation() {
+  var overlay = document.createElement('div');
+  overlay.id = 'defeat-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;transition:opacity 0.3s;';
+  var content = document.createElement('div');
+  content.style.cssText = 'text-align:center;color:#fff;font-size:2.5em;font-weight:bold;animation:scaleDown 0.6s ease-out;';
+  content.innerHTML = '💀<br>DERROTA<br><div style="font-size:0.6em;margin-top:20px;color:#ff6b6b;">O grupo foi derrotado...</div>';
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+  setTimeout(function(){ overlay.style.opacity = '1'; }, 50);
+  setTimeout(function(){ overlay.style.opacity = '0'; overlay.style.transition = 'opacity 0.5s'; }, 2500);
+  setTimeout(function(){ overlay.remove(); }, 3000);
+}
+
+/* add animations CSS if not already present */
+if (!document.getElementById('combat-animations')) {
+  var style = document.createElement('style');
+  style.id = 'combat-animations';
+  style.textContent = '@keyframes bounceIn { 0% { transform: scale(0.3); opacity: 0; } 50% { opacity: 1; } 70% { transform: scale(1.05); } 100% { transform: scale(1); } } @keyframes scaleDown { 0% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.8); opacity: 0.8; } }';
+  document.head.appendChild(style);
 }
 
 /* ===========================================================
